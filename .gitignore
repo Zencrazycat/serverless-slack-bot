@@ -135,3 +135,5 @@ config.dev.json
 # idea
 .idea
 
+node_modules
+

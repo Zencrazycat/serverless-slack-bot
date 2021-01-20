@@ -1,0 +1,23 @@
+{
+  "name": "serverless-slack-bot",
+  "version": "1.0.0",
+  "description": "A simple slack bot using AWS Serverless.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Zencrazycat/serverless-slack-bot.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Zencrazycat/serverless-slack-bot/issues"
+  },
+  "homepage": "https://github.com/Zencrazycat/serverless-slack-bot#readme",
+  "devDependencies": {
+    "serverless-pseudo-parameters": "^2.5.0",
+    "serverless-python-requirements": "^5.1.0"
+  }
+}

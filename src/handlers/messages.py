@@ -10,18 +10,17 @@ logger = Logger(service="test-slack-bot")
 
 # Get Bot User OAuth Access token from environment
 BOT_TOKEN = os.environ["BOT_TOKEN"]
-
 # Slack URL to send bot replies
 SLACK_URL = "https://slack.com/api/chat.postMessage"
 
 
-def handler(event, context):
+def process_message(event, _):
     logger.info("Request Event: {}".format(event))
     try:
         # Default empty response
         response = dict()
         if 'body' in event:
-            request_body_json = event['body']
+            request_body_json = json.loads(event['body'])
             logger.info('Received API Gateway Request with Body: {}'.format(request_body_json))
             if 'challenge' in request_body_json:
                 # For verification by Slack
@@ -30,9 +29,10 @@ def handler(event, context):
                 challenge_response = dict()
                 challenge_response['challenge'] = challenge
                 response = {
-                    'status_code': 200,
+                    'statusCode': 200,
                     'body': json.dumps(challenge_response)
                 }
+                return response
 
             if 'event' in request_body_json:
                 slack_event = request_body_json['event']
@@ -63,30 +63,10 @@ def handler(event, context):
                             )
                         )
                         data = data.encode("ascii")
-                        requests.post(
+                        response = requests.post(
                             SLACK_URL, data=data, headers={"Content-type": "application/x-www-form-urlencoded"}
                         )
-
-                        # Construct the HTTP request that will be sent to the Slack API.
-                        # request = urllib.request.Request(
-                        #     SLACK_URL,
-                        #     data=data,
-                        #     method="POST"
-                        # )
-                        #
-                        # # Add a header mentioning that the text is URL-encoded.
-                        # request.add_header(
-                        #     "Content-Type",
-                        #     "application/x-www-form-urlencoded"
-                        # )
-                        #
-                        # # Fire the request
-                        # urllib.request.urlopen(request).read()
-
-                        # Success
-                        response = {
-                            'status_code': 200,
-                        }
+                        response.raise_for_status()
         logger.info("Response: {}".format(response))
         return response
     except Exception as e:
