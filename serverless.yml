@@ -29,6 +29,7 @@ provider:
 
   environment:
     BOT_TOKEN: ${file(configs/config.${self:provider.stage}.yaml):BOT_TOKEN}
+    GENERAL_CHANNEL_ID: ${file(configs/config.${self:provider.stage}.yaml):GENERAL_CHANNEL_ID}
     USER_VACATION_TABLE_NAME:
       Ref: userVacationTable
 
@@ -57,6 +58,8 @@ functions:
           method: post
   notifyAboutNewVacation:
     handler: src.handlers.notifications.notify_about_new_vacation
+    package:
+      artifact:
     events:
       - stream:
           type: dynamodb

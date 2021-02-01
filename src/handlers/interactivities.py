@@ -28,7 +28,7 @@ def send_user_vacations(requster_user_id, interesting_user_id):
     else:
         text = f"{username} booked vacations:\n\n"
         for index, vacation in enumerate(user_vacations, 1):
-            text += f"{index}. {vacation['vacation_start_date']} - {vacation['vacation_end_date']}\n\n"
+            text += f"*{index}. {vacation['vacation_start_date']} - {vacation['vacation_end_date']}*\n\n"
 
     send_markdown_message(text, requster_user_id)
 
