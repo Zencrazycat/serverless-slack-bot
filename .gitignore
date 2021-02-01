@@ -131,9 +131,12 @@ dmypy.json
 # Serverless directories
 .serverless
 config.dev.json
+config.dev.yaml
 
 # idea
 .idea
 
 node_modules
 
+configs/
+configs/*

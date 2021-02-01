@@ -19,29 +19,26 @@ def process_message(event, _):
     try:
         # Default empty response
         response = dict()
-        if 'body' in event:
-            request_body_json = json.loads(event['body'])
-            logger.info('Received API Gateway Request with Body: {}'.format(request_body_json))
-            if 'challenge' in request_body_json:
+        if "body" in event:
+            request_body_json = json.loads(event["body"])
+            logger.info("Received API Gateway Request with Body: {}".format(request_body_json))
+            if "challenge" in request_body_json:
                 # For verification by Slack
                 challenge = request_body_json["challenge"]
-                logger.info('Challenge: {}'.format(challenge))
+                logger.info("Challenge: {}".format(challenge))
                 challenge_response = dict()
-                challenge_response['challenge'] = challenge
-                response = {
-                    'statusCode': 200,
-                    'body': json.dumps(challenge_response)
-                }
+                challenge_response["challenge"] = challenge
+                response = {"statusCode": 200, "body": json.dumps(challenge_response)}
                 return response
 
-            if 'event' in request_body_json:
-                slack_event = request_body_json['event']
-                logger.info('Received Slack Event with Body: {}'.format(slack_event))
-                if 'bot_id' in slack_event:
-                    logger.warn('Ignored bot event')
+            if "event" in request_body_json:
+                slack_event = request_body_json["event"]
+                logger.info("Received Slack Event with Body: {}".format(slack_event))
+                if "bot_id" in slack_event:
+                    logger.warn("Ignored bot event")
                 else:
-                    user_message = slack_event['text']
-                    logger.info('User Message: {}'.format(user_message))
+                    user_message = slack_event["text"]
+                    logger.info("User Message: {}".format(user_message))
 
                     # Create your Bot Reply logic here
                     # For now - this is a hardcoded reply
@@ -55,14 +52,7 @@ def process_message(event, _):
                     if len(user_message) > 0:
                         # Create an associative array and URL-encode it
                         # The Slack API doesn't not handle JSON
-                        data = parse.urlencode(
-                            (
-                                ("token", BOT_TOKEN),
-                                ("channel", channel_id),
-                                ("text", bot_reply)
-                            )
-                        )
-                        data = data.encode("ascii")
+                        data = parse.urlencode((("token", BOT_TOKEN), ("channel", channel_id), ("text", bot_reply)))
                         response = requests.post(
                             SLACK_URL, data=data, headers={"Content-type": "application/x-www-form-urlencoded"}
                         )
