@@ -1,7 +1,9 @@
+import datetime
 import json
 from urllib import parse
 
 from aws_lambda_powertools import Logger
+import holidays
 from lambda_decorators import dump_json_body
 
 from . import send_markdown_message, open_modal
@@ -12,11 +14,24 @@ from ..services.aws.dynamodb import save_vacation_to_db, get_user_vacations_from
 
 logger = Logger(service="test-slack-bot")
 
+UA_HOLIDAYS = holidays.UA()
+VACATION_DATES_FORMATTING = "%Y-%m-%d"
+VACATION_DATES_FORMATTING_TO_DISPLAY = "%d.%m.%Y"
 
 INTERACTIVITIES_RENDER_FUNCTIONS_MAPPING = {
     "book_vacation": render_book_vacation_modal,
     "see_user_vacations": render_see_user_vacations_modal,
 }
+
+
+def compute_working_days_in_vacation(start_date: datetime.datetime, end_date: datetime.datetime) -> int:
+    vacation_dates_range = [start_date + datetime.timedelta(days=x) for x in range(0, (end_date - start_date).days)]
+    working_days_count = 0
+    for date in vacation_dates_range:
+        if not (date.weekday() > 4 or date.strftime(VACATION_DATES_FORMATTING) in UA_HOLIDAYS):
+            working_days_count += 1
+
+    return working_days_count
 
 
 def send_user_vacations(requster_user_id, interesting_user_id):
@@ -26,9 +41,20 @@ def send_user_vacations(requster_user_id, interesting_user_id):
     if not user_vacations:
         text = f"{username} doesn't have booked vacations :thinking_face:"
     else:
-        text = f"{username} booked vacations:\n\n"
+        total_working_days = 0
+        text = f"*@{username}* booked vacations:\n\n"
         for index, vacation in enumerate(user_vacations, 1):
-            text += f"*{index}. {vacation['vacation_start_date']} - {vacation['vacation_end_date']}*\n\n"
+            start_date = datetime.datetime.strptime(vacation["vacation_start_date"], VACATION_DATES_FORMATTING)
+            end_date = datetime.datetime.strptime(vacation["vacation_end_date"], VACATION_DATES_FORMATTING)
+            vacation_working_days = compute_working_days_in_vacation(start_date, end_date)
+            total_working_days += vacation_working_days
+
+            text += f"*{index}. " \
+                    f"{start_date.strftime(VACATION_DATES_FORMATTING_TO_DISPLAY)} - " \
+                    f"{end_date.strftime(VACATION_DATES_FORMATTING_TO_DISPLAY)}*\t\t" \
+                    f"({vacation_working_days} working days)\n\n"
+
+        text += f"Total working days: {total_working_days}"
 
     send_markdown_message(text, requster_user_id)
 
@@ -57,11 +83,11 @@ def process_interactivity(event, _):
                     block_data["vacation_end_date"]["selected_date"],
                 )
                 send_markdown_message(
-                    "Vacation was booked successfully :stuck_out_tongue_winking_eye::+1:", payload["user"]["id"]
+                    "Vacation was booked *successfully* :stuck_out_tongue_winking_eye::+1:", payload["user"]["id"]
                 )
             except ValidationError as e:
                 send_markdown_message(
-                    f"Vacation was not booked, because it is invalid: {e} :thinking_face:",
+                    f"Vacation *was not booked*, because it is invalid: {e} :thinking_face:",
                     payload["user"]["id"]
                 )
 
