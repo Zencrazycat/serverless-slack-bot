@@ -24,12 +24,19 @@ INTERACTIVITIES_RENDER_FUNCTIONS_MAPPING = {
 }
 
 
-def compute_working_days_in_vacation(start_date: datetime.datetime, end_date: datetime.datetime) -> int:
+def compute_working_days_in_vacation(
+        start_date: datetime.datetime, end_date: datetime.datetime, working_days_by_year_dict
+) -> int:
     vacation_dates_range = [start_date + datetime.timedelta(days=x) for x in range(0, (end_date - start_date).days)]
     working_days_count = 0
     for date in vacation_dates_range:
         if not (date.weekday() > 4 or date.strftime(VACATION_DATES_FORMATTING) in UA_HOLIDAYS):
             working_days_count += 1
+
+            if working_days_by_year_dict.get(date.year):
+                working_days_by_year_dict[date.year] += 1
+            else:
+                working_days_by_year_dict[date.year] = 1
 
     return working_days_count
 
@@ -41,12 +48,18 @@ def send_user_vacations(requster_user_id, interesting_user_id):
     if not user_vacations:
         text = f"{username} doesn't have booked vacations :thinking_face:"
     else:
-        total_working_days = 0
+        user_vacations.sort(
+            key=lambda vacation: datetime.datetime.strptime(vacation["vacation_start_date"], VACATION_DATES_FORMATTING)
+        )
         text = f"*@{username}* booked vacations:\n\n"
+
+        total_working_days = 0
+        working_days_by_year_dict = {}
+
         for index, vacation in enumerate(user_vacations, 1):
             start_date = datetime.datetime.strptime(vacation["vacation_start_date"], VACATION_DATES_FORMATTING)
             end_date = datetime.datetime.strptime(vacation["vacation_end_date"], VACATION_DATES_FORMATTING)
-            vacation_working_days = compute_working_days_in_vacation(start_date, end_date)
+            vacation_working_days = compute_working_days_in_vacation(start_date, end_date, working_days_by_year_dict)
             total_working_days += vacation_working_days
 
             text += f"*{index}. " \
@@ -54,7 +67,9 @@ def send_user_vacations(requster_user_id, interesting_user_id):
                     f"{end_date.strftime(VACATION_DATES_FORMATTING_TO_DISPLAY)}*\t\t" \
                     f"({vacation_working_days} working days)\n\n"
 
-        text += f"Total working days: {total_working_days}"
+        text += f"Total working days: *{total_working_days}*\n"
+        for year, days in working_days_by_year_dict.items():
+            text += f"\t*{days}* days in *{year}* year\n"
 
     send_markdown_message(text, requster_user_id)
 
