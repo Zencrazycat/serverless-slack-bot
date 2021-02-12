@@ -1,4 +1,4 @@
-service: test-slack-bot
+service: HR-slack-bot
 
 plugins:
   - serverless-pseudo-parameters
@@ -29,37 +29,35 @@ provider:
 
   environment:
     BOT_TOKEN: ${file(configs/config.${self:provider.stage}.yaml):BOT_TOKEN}
-    GENERAL_CHANNEL_ID: ${file(configs/config.${self:provider.stage}.yaml):GENERAL_CHANNEL_ID}
+    BOT_HEALTH_CHANNEL_ID: ${file(configs/config.${self:provider.stage}.yaml):BOT_HEALTH_CHANNEL_ID}
     USER_VACATION_TABLE_NAME:
       Ref: userVacationTable
 
 package:
+  include:
+    - '!./**'
+    - './src/**'
   exclude:
-    - .git/**
-    - venv/**
-    - node_modules/**
+    - '**'
 
 functions:
   processMessage:
     handler: src.handlers.messages.process_message
-    package:
-      artifact:
     events:
       - http:
           path: message
           method: post
   processInteractivity:
     handler: src.handlers.interactivities.process_interactivity
-    package:
-      artifact:
     events:
       - http:
           path: interactivity
           method: post
-  notifyAboutNewVacation:
-    handler: src.handlers.notifications.notify_about_new_vacation
-    package:
-      artifact:
+  processVacationsStream:
+    handler: src.handlers.notifications.process_vacations_stream
+    environment:
+      GENERAL_CHANNEL_ID: ${file(configs/config.${self:provider.stage}.yaml):GENERAL_CHANNEL_ID}
+      CEO_ACCOUNT_ID: ${file(configs/config.${self:provider.stage}.yaml):CEO_ACCOUNT_ID}
     events:
       - stream:
           type: dynamodb
@@ -77,11 +75,20 @@ resources:
             AttributeType: S
           - AttributeName: sk
             AttributeType: S
+          - AttributeName: vacation_status
+            AttributeType: S
         KeySchema:
           - AttributeName: pk
             KeyType: HASH
           - AttributeName: sk
             KeyType: RANGE
         BillingMode: PAY_PER_REQUEST
+        GlobalSecondaryIndexes:
+          - IndexName: gsi1
+            KeySchema:
+              - AttributeName: vacation_status
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
         StreamSpecification:
           StreamViewType: NEW_IMAGE
