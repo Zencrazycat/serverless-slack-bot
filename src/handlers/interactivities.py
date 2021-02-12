@@ -4,15 +4,18 @@ from urllib import parse
 
 from aws_lambda_powertools import Logger
 import holidays
-from lambda_decorators import dump_json_body
 
-from . import send_markdown_message, open_modal
-from .modals import render_book_vacation_modal, render_see_user_vacations_modal
+from . import uncaught_exceptions_handler
+from .messages import send_markdown_message
+from .modals.api_calls import open_modal
+from .modals.templates import render_book_vacation_modal, render_see_user_vacations_modal
 from .. import ValidationError
-from ..services.aws.dynamodb import save_vacation_to_db, get_user_vacations_from_db, get_user_from_db
+from ..services.aws.dynamodb import (
+    save_vacation_to_db, get_user_vacations_from_db, get_user_from_db, get_vacation_from_db, update_vacation_status
+)
 
 
-logger = Logger(service="test-slack-bot")
+logger = Logger(service="HR-slack-bot")
 
 UA_HOLIDAYS = holidays.UA()
 VACATION_DATES_FORMATTING = "%Y-%m-%d"
@@ -21,6 +24,51 @@ VACATION_DATES_FORMATTING_TO_DISPLAY = "%d.%m.%Y"
 INTERACTIVITIES_RENDER_FUNCTIONS_MAPPING = {
     "book_vacation": render_book_vacation_modal,
     "see_user_vacations": render_see_user_vacations_modal,
+}
+
+
+def process_block_actions(payload):
+    received_action = payload["actions"][0]
+    if received_action["action_id"] in {"approve_vacation", "decline_vacation"}:
+        block_id_dict = json.loads(received_action["block_id"])
+        if block_id_dict["event"] == "vacation_decision":
+            user_id = block_id_dict["user_id"]
+            vacation_id = block_id_dict["vacation_id"]
+            vacation_item = get_vacation_from_db(user_id, vacation_id)
+            if vacation_item["vacation_status"] == "PENDING":
+                new_status = received_action["value"]
+                update_vacation_status(user_id, vacation_id, new_status)
+                send_markdown_message(
+                    f"Vacation for @{vacation_item['username']} was {new_status.lower()} :ok_hand:",
+                    webhook_url=payload["response_url"]
+                )
+
+
+def process_view_submission(payload):
+    view = payload.get("view")
+    if (callback_id := view["callback_id"]) == "book_vacation":
+        block_data = view["state"]["values"]["vacation_dates"]
+        try:
+            save_vacation_to_db(
+                payload["user"]["id"],
+                payload["user"]["username"],
+                block_data["vacation_start_date"]["selected_date"],
+                block_data["vacation_end_date"]["selected_date"],
+            )
+        except ValidationError as e:
+            send_markdown_message(
+                f"Vacation *was not booked*, because it is invalid: {e} :thinking_face:",
+                channel=payload["user"]["id"]
+            )
+
+    elif callback_id == "see_user_vacations":
+        block_data = view["state"]["values"]["user_selector"]
+        send_user_vacations(payload["user"]["id"], block_data["user_selector"]["selected_user"])
+
+
+PAYLOAD_PROCESSING_FUNCTIONS_MAPPING = {
+    "block_actions": process_block_actions,
+    "view_submission": process_view_submission
 }
 
 
@@ -71,11 +119,11 @@ def send_user_vacations(requster_user_id, interesting_user_id):
         for year, days in working_days_by_year_dict.items():
             text += f"\t*{days}* days in *{year}* year\n"
 
-    send_markdown_message(text, requster_user_id)
+    send_markdown_message(text, channel=requster_user_id)
 
 
-@dump_json_body
 @logger.inject_lambda_context(log_event=True)
+@uncaught_exceptions_handler
 def process_interactivity(event, _):
     request_body_json = parse.parse_qs(event["body"])
     payload = json.loads(request_body_json["payload"][0])
@@ -86,28 +134,7 @@ def process_interactivity(event, _):
         open_modal_body = render_modal_body_function(payload["trigger_id"])
         open_modal(open_modal_body)
 
-    elif payload.get("type") == "view_submission":
-        view = payload.get("view")
-        if (callback_id := view["callback_id"]) == "book_vacation":
-            block_data = view["state"]["values"]["vacation_dates"]
-            try:
-                save_vacation_to_db(
-                    payload["user"]["id"],
-                    payload["user"]["username"],
-                    block_data["vacation_start_date"]["selected_date"],
-                    block_data["vacation_end_date"]["selected_date"],
-                )
-                send_markdown_message(
-                    "Vacation was booked *successfully* :stuck_out_tongue_winking_eye::+1:", payload["user"]["id"]
-                )
-            except ValidationError as e:
-                send_markdown_message(
-                    f"Vacation *was not booked*, because it is invalid: {e} :thinking_face:",
-                    payload["user"]["id"]
-                )
-
-        elif callback_id == "see_user_vacations":
-            block_data = view["state"]["values"]["user_selector"]
-            send_user_vacations(payload["user"]["id"], block_data["user_selector"]["selected_user"])
+    elif payload_type := payload.get("type"):
+        PAYLOAD_PROCESSING_FUNCTIONS_MAPPING.get(payload_type, lambda *args: None)(payload)
 
     return {"statusCode": 200}
