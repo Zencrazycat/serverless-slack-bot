@@ -1,23 +1,25 @@
 import os
+from http import HTTPStatus
 
-import requests
+from aws_lambda_powertools import Logger
 
-
-BOT_TOKEN = os.environ["BOT_TOKEN"]
-OPEN_MODAL_URL = "https://slack.com/api/views.open"
-SEND_MESSAGE_URL = "https://slack.com/api/chat.postMessage"
+from src.handlers.messages import send_markdown_message
 
 
-def send_markdown_message(text, channel):
-    send_user_vacations_body = {
-        "channel": channel,
-        "blocks": [{"type": "section", "text": {"type": "mrkdwn", "text": text}}],
-    }
-    slack_response = requests.post(
-        SEND_MESSAGE_URL, headers={"Authorization": f"Bearer {BOT_TOKEN}"}, json=send_user_vacations_body
-    )
-    return slack_response
+logger = Logger(service="HR-slack-bot")
 
 
-def open_modal(open_modal_body):
-    requests.post(OPEN_MODAL_URL, headers={"Authorization": f"Bearer {BOT_TOKEN}"}, json=open_modal_body)
+def uncaught_exceptions_handler(lambda_func):
+    def catch_error(*args, **kwargs):
+        try:
+            lambda_response = lambda_func(*args, **kwargs)
+        except Exception as e:
+            send_markdown_message(
+                text=f"Lambda: {lambda_func.__name__}\nError: {e}", channel=os.getenv("BOT_HEALTH_CHANNEL_ID")
+            )
+            logger.exception("Unexpected error")
+            return {"statusCode": HTTPStatus.OK}
+        else:
+            return lambda_response
+    return catch_error
+
