@@ -17,14 +17,7 @@ SLACK_URL = "https://slack.com/api/chat.postMessage"
 @load_json_body
 @dump_json_body
 def process_message(event, _):
-    if request_body_json := event.get("body"):
-        if challenge := request_body_json.get("challenge"):
-            # For verification by Slack
-            logger.info(f"Challenge: {challenge}")
-            response = {"statusCode": 200, "body": {"challenge": challenge}}
-            return response
-
-    return {"statusCode": 200}
+    return {"statusCode": 200, "body": event.get("body", {}).get("challenge")}
 
 
 def send_markdown_message(text, channel=None, webhook_url=None):
