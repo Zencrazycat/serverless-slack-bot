@@ -26,13 +26,12 @@ def format_vacation_string_to_date(string_date):
     return datetime.strptime(string_date, "%Y-%m-%d")
 
 
-def validate_new_vacation(new_vacation_start_date, new_vacation_end_date, user_id):
+def validate_new_vacation(new_vacation_start_date, new_vacation_end_date, existing_user_vacations):
     new_vacation_start_date = format_vacation_string_to_date(new_vacation_start_date)
     new_vacation_end_date = format_vacation_string_to_date(new_vacation_end_date)
     if new_vacation_start_date > new_vacation_end_date:
         raise ValidationError("Start date cannot be later then end date")
 
-    existing_user_vacations = get_user_vacations_from_db(user_id)
     for vacation in existing_user_vacations:
         existing_vacation_start_date = format_vacation_string_to_date(vacation["vacation_start_date"])
         existing_vacation_end_date = format_vacation_string_to_date(vacation["vacation_end_date"])
@@ -47,7 +46,8 @@ def save_vacation_to_db(user_id, username, vacation_start_date, vacation_end_dat
     if not get_user_from_db(user_id):
         save_user_to_db(user_id, username)
     else:
-        validate_new_vacation(vacation_start_date, vacation_end_date, user_id)
+        existing_user_vacations = get_user_vacations_from_db(user_id)
+        validate_new_vacation(vacation_start_date, vacation_end_date, existing_user_vacations)
 
     pk = generate_key(TYPE_USER, user_id)
     sk = generate_key(TYPE_VACATION, str(uuid4()))
