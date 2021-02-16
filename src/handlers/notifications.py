@@ -8,7 +8,7 @@ from aws_lambda_powertools import Logger
 
 from . import uncaught_exceptions_handler
 from .messages import send_markdown_message, SEND_MESSAGE_URL, BOT_TOKEN
-from ..services.aws.dynamodb import decode_key
+from ..services.aws.dynamodb import decode_key, delete_vacation_from_db
 
 
 logger = Logger(service="HR-slack-bot")
@@ -130,9 +130,12 @@ def process_vacations_stream(event, _):
     if record["dynamodb"]["Keys"]["sk"]["S"].startswith("VACATION"):
         if (event_name := record["eventName"]) == "MODIFY":
             vacation = record["dynamodb"]["NewImage"]
-            if vacation["vacation_status"]["S"] == "APPROVED":
+            if new_vacation_status := vacation["vacation_status"]["S"] == "APPROVED":
                 notify_general_about_approved_vacation(vacation)
+            elif new_vacation_status == "DECLINED":
+                delete_vacation_from_db(vacation["user_id"]["S"], vacation["vacation_id"]["S"])
             notify_requester_about_new_vacation_status(vacation)
+
         elif event_name == "INSERT":
             vacation = record["dynamodb"]["NewImage"]
             notify_ceo_about_new_vacation(vacation)

@@ -100,3 +100,10 @@ def update_vacation_status(user_id, vacation_id, status):
         Key={"pk": pk, "sk": sk}, AttributeUpdates={"vacation_status": {"Value": status, "Action": "PUT"}}
     )
     return response
+
+
+def delete_vacation_from_db(user_id, vacation_id):
+    pk = generate_key(EntityType.USER.value, user_id)
+    sk = generate_key(EntityType.VACATION.value, vacation_id)
+    response = USER_VACATION_TABLE.delete_item(Key={"pk": pk, "sk": sk})
+    return response
