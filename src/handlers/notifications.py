@@ -130,10 +130,10 @@ def process_vacations_stream(event, _):
     if record["dynamodb"]["Keys"]["sk"]["S"].startswith("VACATION"):
         if (event_name := record["eventName"]) == "MODIFY":
             vacation = record["dynamodb"]["NewImage"]
-            if new_vacation_status := vacation["vacation_status"]["S"] == "APPROVED":
+            if (new_vacation_status := vacation["vacation_status"]["S"]) == "APPROVED":
                 notify_general_about_approved_vacation(vacation)
             elif new_vacation_status == "DECLINED":
-                delete_vacation_from_db(vacation["user_id"]["S"], vacation["vacation_id"]["S"])
+                delete_vacation_from_db(decode_key(vacation["pk"]["S"]), decode_key(vacation["sk"]["S"]))
             notify_requester_about_new_vacation_status(vacation)
 
         elif event_name == "INSERT":
