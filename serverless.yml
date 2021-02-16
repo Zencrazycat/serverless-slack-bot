@@ -3,7 +3,11 @@ service: HR-slack-bot
 plugins:
   - serverless-pseudo-parameters
   - serverless-python-requirements
+  - serverless-stage-manager
 custom:
+  stages:
+    - dev
+    - prod
   pythonRequirements:
     dockerizePip: non-linux
     slim: true

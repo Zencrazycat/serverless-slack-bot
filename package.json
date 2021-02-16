@@ -18,6 +18,7 @@
   "homepage": "https://github.com/Zencrazycat/serverless-slack-bot#readme",
   "devDependencies": {
     "serverless-pseudo-parameters": "^2.5.0",
-    "serverless-python-requirements": "^5.1.0"
+    "serverless-python-requirements": "^5.1.0",
+    "serverless-stage-manager": "^1.0.5"
   }
 }
