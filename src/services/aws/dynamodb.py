@@ -6,6 +6,9 @@ from datetime import datetime
 import boto3
 from boto3.dynamodb.conditions import Key
 
+from src.handlers.exceptions import ValidationError
+
+
 dynamodb = boto3.resource("dynamodb")
 USER_VACATION_TABLE = dynamodb.Table(os.getenv("USER_VACATION_TABLE_NAME"))
 
@@ -13,10 +16,6 @@ USER_VACATION_TABLE = dynamodb.Table(os.getenv("USER_VACATION_TABLE_NAME"))
 class EntityType(Enum):
     USER = "USER"
     VACATION = "VACATION"
-
-
-class ValidationError(Exception):
-    pass
 
 
 def generate_key(type, name):

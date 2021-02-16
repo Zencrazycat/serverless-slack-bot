@@ -6,6 +6,7 @@ from aws_lambda_powertools import Logger
 import holidays
 
 from . import uncaught_exceptions_handler
+from .exceptions import ValidationError
 from .messages import send_markdown_message
 from .modals.api_calls import open_modal
 from .modals.templates import render_book_vacation_modal, render_see_user_vacations_modal
@@ -24,10 +25,6 @@ INTERACTIVITIES_RENDER_FUNCTIONS_MAPPING = {
     "book_vacation": render_book_vacation_modal,
     "see_user_vacations": render_see_user_vacations_modal,
 }
-
-
-class ValidationError(Exception):
-    pass
 
 
 def process_block_actions(payload):
