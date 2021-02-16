@@ -9,7 +9,6 @@ from . import uncaught_exceptions_handler
 from .messages import send_markdown_message
 from .modals.api_calls import open_modal
 from .modals.templates import render_book_vacation_modal, render_see_user_vacations_modal
-from .. import ValidationError
 from ..services.aws.dynamodb import (
     save_vacation_to_db, get_user_vacations_from_db, get_user_from_db, get_vacation_from_db, update_vacation_status
 )
@@ -27,21 +26,28 @@ INTERACTIVITIES_RENDER_FUNCTIONS_MAPPING = {
 }
 
 
+class ValidationError(Exception):
+    pass
+
+
 def process_block_actions(payload):
     received_action = payload["actions"][0]
-    if received_action["action_id"] in {"approve_vacation", "decline_vacation"}:
-        block_id_dict = json.loads(received_action["block_id"])
-        if block_id_dict["event"] == "vacation_decision":
-            user_id = block_id_dict["user_id"]
-            vacation_id = block_id_dict["vacation_id"]
-            vacation_item = get_vacation_from_db(user_id, vacation_id)
-            if vacation_item["vacation_status"] == "PENDING":
-                new_status = received_action["value"]
-                update_vacation_status(user_id, vacation_id, new_status)
-                send_markdown_message(
-                    f"Vacation for @{vacation_item['username']} was {new_status.lower()} :ok_hand:",
-                    webhook_url=payload["response_url"]
-                )
+    if received_action["action_id"] not in {"approve_vacation", "decline_vacation"}:
+        return
+    block_id_dict = json.loads(received_action["block_id"])
+    if block_id_dict["event"] != "vacation_decision":
+        return
+    user_id = block_id_dict["user_id"]
+    vacation_id = block_id_dict["vacation_id"]
+    vacation_item = get_vacation_from_db(user_id, vacation_id)
+    if vacation_item["vacation_status"] != "PENDING":
+        return
+    new_status = received_action["value"]
+    update_vacation_status(user_id, vacation_id, new_status)
+    send_markdown_message(
+        f"Vacation for @{vacation_item['username']} was {new_status.lower()} :ok_hand:",
+        webhook_url=payload["response_url"]
+    )
 
 
 def process_view_submission(payload):

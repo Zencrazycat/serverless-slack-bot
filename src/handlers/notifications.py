@@ -17,6 +17,12 @@ VACATION_DATES_FORMATTING = "%Y-%m-%d"
 VACATION_DATES_FORMATTING_TO_DISPLAY = "%d.%m.%Y"
 
 
+VACATION_STATUSES_RESPONSES_MAPPING = {
+    "DECLINED": ":neutral_face:. Contact your manager to get more information.",
+    "APPROVED": ":tada:. Have a good rest!"
+}
+
+
 class SeasonEmojiSet(Enum):
     SUMMER = ":palm_tree::airplane::sun_with_face::umbrella_on_ground:"
     AUTUMN = ":maple_leaf::jack_o_lantern::coffee::fallen_leaf:"
@@ -58,10 +64,7 @@ def notify_requester_about_new_vacation_status(vacation):
            f"*{start_date.strftime(VACATION_DATES_FORMATTING_TO_DISPLAY)} - " \
            f"{end_date.strftime(VACATION_DATES_FORMATTING_TO_DISPLAY)}*\n\n" \
            f"was *{new_vacation_status.lower()}* "
-    text += {
-        "DECLINED": ":neutral_face:. Contact your manager to get more information.",
-        "APPROVED": ":tada:. Have a good rest!"
-    }[new_vacation_status]
+    text += VACATION_STATUSES_RESPONSES_MAPPING[new_vacation_status]
 
     send_markdown_message(text, channel=decode_key(vacation["pk"]["S"]))
 
